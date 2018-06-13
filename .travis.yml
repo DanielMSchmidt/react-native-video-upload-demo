@@ -1,0 +1,11 @@
+sudo: required
+
+services:
+  - docker
+
+matrix:
+  include:
+    - script:
+      - docker build -t $DOCKER_USERNAME/react-native-video-upload-demo-backend ./backend
+      - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+      - docker push $DOCKER_USERNAME/react-native-video-upload-demo-backend
