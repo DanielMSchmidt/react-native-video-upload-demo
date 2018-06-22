@@ -9,6 +9,9 @@ import {
 } from "react-native";
 import { RNCamera } from "react-native-camera";
 import { ENDPOINT } from "./Config";
+import RNFetchBlob from "react-native-fetch-blob";
+
+const FS_INTERVAL = 50;
 
 export default class RecordVideo extends Component {
   constructor() {
@@ -63,7 +66,10 @@ export default class RecordVideo extends Component {
           permissionDialogMessage={
             "We need your permission to use your camera phone"
           }
-          onRecordingStarted={x => console.log("Recoring started at", x)}
+          onRecordingStarted={({ uri }) => {
+            console.log("Recording started", uri);
+            this.recordingStarted(uri);
+          }}
         />
         <View
           style={{ flex: 0, flexDirection: "row", justifyContent: "center" }}
@@ -74,30 +80,61 @@ export default class RecordVideo extends Component {
     );
   }
 
+  async readCurrentFile(uri, existingData = "", startAtPosition = 0) {
+    let receivedUntil = 0;
+    let data = existingData;
+    const stream = await RNFetchBlob.fs.readStream(uri, "base64");
+    stream.open();
+    console.log("opening stream");
+
+    return new Promise(resolve => {
+      stream.onData(chunk => {
+        console.log("chunk length", chunk);
+        receivedUntil += chunk.length;
+
+        if (receivedUntil <= startAtPosition) {
+          // Do nothing, we already added this part
+          console.log("already added, doing nothing");
+          return;
+        }
+
+        if (startAtPosition < receivedUntil) {
+          // We got a partial match, so we need to add what hasn't been added
+          const length = receivedUntil - startAtPosition;
+          console.log("needing to add a partial of length", length);
+          const startOfChunk = Math.min(chunk.length - length, 0);
+
+          data += chunk.slice(startOfChunk);
+          return;
+        }
+        console.debug("Fallthrough case :/", receivedUntil, startAtPosition);
+      });
+
+      stream.onEnd(() => {
+        console.log("onEnd");
+        if (this.state.recording) {
+          this.readCurrentFile(uri, data, receivedUntil).then(resolve);
+        } else {
+          resolve(data);
+        }
+      });
+    });
+  }
+
+  async recordingStarted(uri) {
+    const data = await this.readCurrentFile(uri);
+    console.log("End Result", data);
+  }
+
   async startRecording() {
     this.setState({ recording: true });
     // default to mp4 for android as codec is not set
     const { uri, codec = "mp4" } = await this.camera.recordAsync();
-    this.setState({ recording: false, processing: true });
-    const type = `video/${codec}`;
+    console.log("Record async finished");
 
-    const data = new FormData();
-    data.append("video", {
-      name: "mobile-video-upload",
-      type,
-      uri
-    });
-
-    try {
-      const res = await fetch(ENDPOINT, {
-        method: "post",
-        body: data
-      });
-    } catch (e) {
-      console.error(e);
-    }
-
-    this.setState({ processing: false });
+    // stop file watching & send the rest
+    // this.setState({ recording: false, processing: true });
+    this.setState({ processing: false, recording: false });
   }
 
   stopRecording() {
