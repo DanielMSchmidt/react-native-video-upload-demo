@@ -63,6 +63,7 @@ export default class RecordVideo extends Component {
           permissionDialogMessage={
             "We need your permission to use your camera phone"
           }
+          onRecordingStarted={x => console.log("Recoring started at", x)}
         />
         <View
           style={{ flex: 0, flexDirection: "row", justifyContent: "center" }}
