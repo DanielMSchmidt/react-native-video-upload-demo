@@ -15,6 +15,7 @@ const upload = multer({ dest: `${UPLOAD_PATH}/` });
 const db = new Loki(`${UPLOAD_PATH}/${DB_NAME}`, { persistenceMethod: "fs" });
 
 const app = express();
+require("express-ws")(app);
 app.use(cors());
 
 function loadCollection(colName, db) {
@@ -46,6 +47,20 @@ app.post("/", upload.single("video"), async (req, res) => {
     console.error(err);
     res.sendStatus(500).end();
   }
+});
+
+app.ws("/", function(ws) {
+  let data = "";
+
+  ws.on("message", function(msg) {
+    data += msg;
+  });
+
+  ws.on("close", async function close() {
+    const col = await loadCollection(COLUMN_NAME, db);
+    col.insert(data);
+    db.saveDatabase();
+  });
 });
 
 app.get("/", async (req, res) => {

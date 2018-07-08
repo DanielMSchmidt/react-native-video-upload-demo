@@ -8,7 +8,7 @@ import {
   View
 } from "react-native";
 import { RNCamera } from "react-native-camera";
-import { ENDPOINT } from "./Config";
+import { WS_ENDPOINT } from "./Config";
 import RNFetchBlob from "react-native-fetch-blob";
 
 const FS_INTERVAL = 50;
@@ -81,59 +81,16 @@ export default class RecordVideo extends Component {
     );
   }
 
-  // This implementation tries to work around a fast closing API
-  // async readCurrentFile(uri, startAtPosition = 0) {
-  //   const self = this;
-  //   let receivedUntil = 0;
-  //   const stream = await RNFetchBlob.fs.readStream(uri, "base64");
-  //   stream.open();
-  //   console.log("opening stream");
-
-  //   return new Promise(resolve => {
-  //     stream.onData(chunk =>
-  //       requestAnimationFrame(() => {
-  //         console.log("chunk length", chunk);
-  //         receivedUntil += chunk.length;
-  //         if (receivedUntil <= startAtPosition) {
-  //           // Do nothing, we already added this part
-  //           console.log("already added, doing nothing");
-  //           return;
-  //         }
-  //         if (startAtPosition < receivedUntil) {
-  //           // We got a partial match, so we need to add what hasn't been added
-  //           const length = receivedUntil - startAtPosition;
-  //           console.log("needing to add a partial of length", length);
-  //           const startOfChunk = Math.min(chunk.length - length, 0);
-  //           self.data += chunk.slice(startOfChunk);
-  //           return;
-  //         }
-  //         console.debug("Fallthrough case :/", receivedUntil, startAtPosition);
-  //       })
-  //     );
-
-  //     stream.onEnd(() => {
-  //       console.log("onEnd");
-  //       if (this.state.recording) {
-  //         this.readCurrentFile(uri, receivedUntil).then(resolve);
-  //       } else {
-  //         resolve(data);
-  //       }
-  //     });
-  //   });
-  // }
-
-  // async recordingStarted(uri) {
-  //   this.data = "";
-  //   await this.readCurrentFile(uri);
-  //   console.log("End Result", this.data);
-  // }
-
   async recordingStarted(uri) {
     let data = "";
-    console.log(+new Date());
+    const ws = new WebSocket(WS_ENDPOINT);
+    ws.onerror = e => {
+      // an error occurred
+      console.log("Websocket error", e);
+    };
 
     await new Promise((resolve, reject) => {
-      setTimeout(async () => {
+      ws.onopen = async () => {
         const stream = await RNFetchBlob.fs.readStream(
           uri,
           "base64"
@@ -142,21 +99,18 @@ export default class RecordVideo extends Component {
         );
         stream.onEnd(() => {
           console.log("onEnd");
-
-          console.log(+new Date());
+          ws.close();
           resolve(data);
         });
         stream.onError(reject);
 
         stream.onData(chunk => {
-          console.log(+new Date());
-          console.log("Received chunk", chunk);
           data += chunk;
+          ws.send(chunk);
         });
-        console.log("opening stream");
-        console.log(+new Date());
+
         stream.open();
-      }, 1000);
+      };
     });
   }
 
