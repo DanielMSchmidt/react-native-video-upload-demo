@@ -66,9 +66,10 @@ export default class RecordVideo extends Component {
           permissionDialogMessage={
             "We need your permission to use your camera phone"
           }
-          onRecordingStarted={({ uri }) => {
+          onRecordingStarted={async ({ uri }) => {
             console.log("Recording started", uri);
-            this.recordingStarted(uri);
+            const data = await this.recordingStarted(uri);
+            console.log("recording done", data);
           }}
         />
         <View
@@ -80,50 +81,83 @@ export default class RecordVideo extends Component {
     );
   }
 
-  async readCurrentFile(uri, existingData = "", startAtPosition = 0) {
-    let receivedUntil = 0;
-    let data = existingData;
-    const stream = await RNFetchBlob.fs.readStream(uri, "base64");
-    stream.open();
-    console.log("opening stream");
+  // This implementation tries to work around a fast closing API
+  // async readCurrentFile(uri, startAtPosition = 0) {
+  //   const self = this;
+  //   let receivedUntil = 0;
+  //   const stream = await RNFetchBlob.fs.readStream(uri, "base64");
+  //   stream.open();
+  //   console.log("opening stream");
 
-    return new Promise(resolve => {
-      stream.onData(chunk => {
-        console.log("chunk length", chunk);
-        receivedUntil += chunk.length;
+  //   return new Promise(resolve => {
+  //     stream.onData(chunk =>
+  //       requestAnimationFrame(() => {
+  //         console.log("chunk length", chunk);
+  //         receivedUntil += chunk.length;
+  //         if (receivedUntil <= startAtPosition) {
+  //           // Do nothing, we already added this part
+  //           console.log("already added, doing nothing");
+  //           return;
+  //         }
+  //         if (startAtPosition < receivedUntil) {
+  //           // We got a partial match, so we need to add what hasn't been added
+  //           const length = receivedUntil - startAtPosition;
+  //           console.log("needing to add a partial of length", length);
+  //           const startOfChunk = Math.min(chunk.length - length, 0);
+  //           self.data += chunk.slice(startOfChunk);
+  //           return;
+  //         }
+  //         console.debug("Fallthrough case :/", receivedUntil, startAtPosition);
+  //       })
+  //     );
 
-        if (receivedUntil <= startAtPosition) {
-          // Do nothing, we already added this part
-          console.log("already added, doing nothing");
-          return;
-        }
+  //     stream.onEnd(() => {
+  //       console.log("onEnd");
+  //       if (this.state.recording) {
+  //         this.readCurrentFile(uri, receivedUntil).then(resolve);
+  //       } else {
+  //         resolve(data);
+  //       }
+  //     });
+  //   });
+  // }
 
-        if (startAtPosition < receivedUntil) {
-          // We got a partial match, so we need to add what hasn't been added
-          const length = receivedUntil - startAtPosition;
-          console.log("needing to add a partial of length", length);
-          const startOfChunk = Math.min(chunk.length - length, 0);
-
-          data += chunk.slice(startOfChunk);
-          return;
-        }
-        console.debug("Fallthrough case :/", receivedUntil, startAtPosition);
-      });
-
-      stream.onEnd(() => {
-        console.log("onEnd");
-        if (this.state.recording) {
-          this.readCurrentFile(uri, data, receivedUntil).then(resolve);
-        } else {
-          resolve(data);
-        }
-      });
-    });
-  }
+  // async recordingStarted(uri) {
+  //   this.data = "";
+  //   await this.readCurrentFile(uri);
+  //   console.log("End Result", this.data);
+  // }
 
   async recordingStarted(uri) {
-    const data = await this.readCurrentFile(uri);
-    console.log("End Result", data);
+    let data = "";
+    console.log(+new Date());
+
+    await new Promise((resolve, reject) => {
+      setTimeout(async () => {
+        const stream = await RNFetchBlob.fs.readStream(
+          uri,
+          "base64"
+          // undefined,
+          // 1000
+        );
+        stream.onEnd(() => {
+          console.log("onEnd");
+
+          console.log(+new Date());
+          resolve(data);
+        });
+        stream.onError(reject);
+
+        stream.onData(chunk => {
+          console.log(+new Date());
+          console.log("Received chunk", chunk);
+          data += chunk;
+        });
+        console.log("opening stream");
+        console.log(+new Date());
+        stream.open();
+      }, 1000);
+    });
   }
 
   async startRecording() {
@@ -138,6 +172,7 @@ export default class RecordVideo extends Component {
   }
 
   stopRecording() {
+    console.log("STOP RECORDING IS CALLED");
     this.camera.stopRecording();
   }
 }
