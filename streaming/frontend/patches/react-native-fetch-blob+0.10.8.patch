@@ -11545,7 +11545,7 @@ new file mode 100644
 +		INJECTED from /Users/danielschmidt/blogposts/react-native-video-upload/streaming/frontend/node_modules/react-native-fetch-blob/android/src/main/AndroidManifest.xml
 --- a/node_modules/react-native-fetch-blob/android/src/main/java/com/RNFetchBlob/RNFetchBlobFS.java
 +++ b/node_modules/react-native-fetch-blob/android/src/main/java/com/RNFetchBlob/RNFetchBlobFS.java
-@@ -35,6 +35,24 @@ import java.util.HashMap;
+@@ -35,6 +35,29 @@ import java.util.HashMap;
  import java.util.Map;
  import java.util.UUID;
  
@@ -11563,14 +11563,19 @@ new file mode 100644
 +    }
 +
 +    public void handle(String buffer) {
-+        this.fs.emitStreamEvent(this.streamId, "data", buffer);
++        byte [] bufferBytes = buffer.getBytes();
++        byte [] copy = new byte[bufferBytes.length];
++        for(int i =0; i < bufferBytes.length; i++) {
++            copy[i] = bufferBytes[i];
++        }
++        this.fs.emitStreamEvent(this.streamId, "data", Base64.encodeToString(copy, Base64.NO_WRAP));
 +    }
 +}
 +
  public class RNFetchBlobFS {
  
      ReactApplicationContext mCtx;
-@@ -50,9 +68,9 @@ public class RNFetchBlobFS {
+@@ -50,9 +73,9 @@ public class RNFetchBlobFS {
      }
  
      static String getExternalFilePath(ReactApplicationContext ctx, String taskId, RNFetchBlobConfig config) {
@@ -11582,7 +11587,7 @@ new file mode 100644
              return RNFetchBlobFS.getTmpPath(ctx, taskId) + "." + config.appendExt;
          else
              return RNFetchBlobFS.getTmpPath(ctx, taskId);
-@@ -60,39 +78,40 @@ public class RNFetchBlobFS {
+@@ -60,39 +83,40 @@ public class RNFetchBlobFS {
  
      /**
       * Write string with encoding to file
@@ -11635,7 +11640,7 @@ new file mode 100644
                  byte[] bytes = stringToBytes(data, encoding);
                  fout.write(bytes);
                  written = bytes.length;
-@@ -106,8 +125,9 @@ public class RNFetchBlobFS {
+@@ -106,8 +130,9 @@ public class RNFetchBlobFS {
  
      /**
       * Write array of bytes into file
@@ -11647,7 +11652,7 @@ new file mode 100644
       * @param promise RCT Promise
       */
      static public void writeFile(String path, ReadableArray data, final boolean append, final Promise promise) {
-@@ -116,11 +136,11 @@ public class RNFetchBlobFS {
+@@ -116,11 +141,11 @@ public class RNFetchBlobFS {
  
              File f = new File(path);
              File dir = f.getParentFile();
@@ -11662,7 +11667,7 @@ new file mode 100644
                  bytes[i] = (byte) data.getInt(i);
              }
              os.write(bytes);
-@@ -133,18 +153,19 @@ public class RNFetchBlobFS {
+@@ -133,18 +158,19 @@ public class RNFetchBlobFS {
  
      /**
       * Read file with a buffer that has the same size as the target file.
@@ -11687,7 +11692,7 @@ new file mode 100644
                  String assetName = path.replace(RNFetchBlobConst.FILE_PREFIX_BUNDLE_ASSET, "");
                  long length = RNFetchBlob.RCTContext.getAssets().openFd(assetName).getLength();
                  bytes = new byte[(int) length];
-@@ -153,14 +174,13 @@ public class RNFetchBlobFS {
+@@ -153,14 +179,13 @@ public class RNFetchBlobFS {
                  in.close();
              }
              // issue 287
@@ -11704,7 +11709,7 @@ new file mode 100644
                  File f = new File(path);
                  int length = (int) f.length();
                  bytes = new byte[length];
-@@ -170,25 +190,24 @@ public class RNFetchBlobFS {
+@@ -170,25 +195,24 @@ public class RNFetchBlobFS {
              }
  
              switch (encoding.toLowerCase()) {
@@ -11747,7 +11752,7 @@ new file mode 100644
              promise.reject("ReadFile Error", err.getLocalizedMessage());
          }
  
-@@ -196,7 +215,8 @@ public class RNFetchBlobFS {
+@@ -196,7 +220,8 @@ public class RNFetchBlobFS {
  
      /**
       * Static method that returns system folders to JS context
@@ -11757,7 +11762,7 @@ new file mode 100644
       */
      static public Map<String, Object> getSystemfolders(ReactApplicationContext ctx) {
          Map<String, Object> res = new HashMap<>();
-@@ -204,11 +224,16 @@ public class RNFetchBlobFS {
+@@ -204,11 +229,16 @@ public class RNFetchBlobFS {
          res.put("DocumentDir", ctx.getFilesDir().getAbsolutePath());
          res.put("CacheDir", ctx.getCacheDir().getAbsolutePath());
          res.put("DCIMDir", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getAbsolutePath());
@@ -11779,7 +11784,7 @@ new file mode 100644
          String state;
          state = Environment.getExternalStorageState();
          if (state.equals(Environment.MEDIA_MOUNTED)) {
-@@ -221,8 +246,9 @@ public class RNFetchBlobFS {
+@@ -221,8 +251,9 @@ public class RNFetchBlobFS {
  
      /**
       * Static method that returns a temp file path
@@ -11791,7 +11796,7 @@ new file mode 100644
       * @return
       */
      static public String getTmpPath(ReactApplicationContext ctx, String taskId) {
-@@ -231,99 +257,113 @@ public class RNFetchBlobFS {
+@@ -231,99 +262,113 @@ public class RNFetchBlobFS {
  
      /**
       * Create a file stream for read
@@ -11976,7 +11981,7 @@ new file mode 100644
              callback.invoke("write stream error: target path `" + path + "` may not exists or it's a folder");
              return;
          }
-@@ -335,23 +375,25 @@ public class RNFetchBlobFS {
+@@ -335,23 +380,25 @@ public class RNFetchBlobFS {
              RNFetchBlobFS.fileStreams.put(streamId, this);
              this.writeStreamInstance = fs;
              callback.invoke(null, streamId);
@@ -12006,7 +12011,7 @@ new file mode 100644
  
          try {
              stream.write(chunk);
-@@ -363,8 +405,9 @@ public class RNFetchBlobFS {
+@@ -363,8 +410,9 @@ public class RNFetchBlobFS {
  
      /**
       * Write data using ascii array
@@ -12017,7 +12022,7 @@ new file mode 100644
       * @param callback JS context callback
       */
      static void writeArrayChunk(String streamId, ReadableArray data, Callback callback) {
-@@ -372,8 +415,8 @@ public class RNFetchBlobFS {
+@@ -372,8 +420,8 @@ public class RNFetchBlobFS {
          try {
              RNFetchBlobFS fs = fileStreams.get(streamId);
              OutputStream stream = fs.writeStreamInstance;
@@ -12028,7 +12033,7 @@ new file mode 100644
                  chunk[i] = (byte) data.getInt(i);
              }
              stream.write(chunk);
-@@ -385,6 +428,7 @@ public class RNFetchBlobFS {
+@@ -385,6 +433,7 @@ public class RNFetchBlobFS {
  
      /**
       * Close file write stream by ID
@@ -12036,7 +12041,7 @@ new file mode 100644
       * @param streamId Stream ID
       * @param callback JS context callback
       */
-@@ -395,23 +439,24 @@ public class RNFetchBlobFS {
+@@ -395,23 +444,24 @@ public class RNFetchBlobFS {
              fileStreams.remove(streamId);
              stream.close();
              callback.invoke();
@@ -12067,7 +12072,7 @@ new file mode 100644
          }
      }
  
-@@ -427,23 +472,26 @@ public class RNFetchBlobFS {
+@@ -427,23 +477,26 @@ public class RNFetchBlobFS {
  
      /**
       * Make a folder
@@ -12100,7 +12105,7 @@ new file mode 100644
       */
      static void cp(String path, String dest, Callback callback) {
  
-@@ -453,11 +501,11 @@ public class RNFetchBlobFS {
+@@ -453,11 +506,11 @@ public class RNFetchBlobFS {
  
          try {
  
@@ -12114,7 +12119,7 @@ new file mode 100644
                  new File(dest).createNewFile();
  
              in = inputStreamFromPath(path);
-@@ -488,13 +536,14 @@ public class RNFetchBlobFS {
+@@ -488,13 +541,14 @@ public class RNFetchBlobFS {
  
      /**
       * Move file
@@ -12132,7 +12137,7 @@ new file mode 100644
              callback.invoke("mv error: source file at path `" + path + "` does not exists");
              return;
          }
-@@ -504,12 +553,13 @@ public class RNFetchBlobFS {
+@@ -504,12 +558,13 @@ public class RNFetchBlobFS {
  
      /**
       * Check if the path exists, also check if it is a folder when exists.
@@ -12149,7 +12154,7 @@ new file mode 100644
              try {
                  String filename = path.replace(RNFetchBlobConst.FILE_PREFIX_BUNDLE_ASSET, "");
                  AssetFileDescriptor fd = RNFetchBlob.RCTContext.getAssets().openFd(filename);
-@@ -517,8 +567,7 @@ public class RNFetchBlobFS {
+@@ -517,8 +572,7 @@ public class RNFetchBlobFS {
              } catch (IOException e) {
                  callback.invoke(false, false);
              }
@@ -12159,7 +12164,7 @@ new file mode 100644
              path = normalizePath(path);
              boolean exist = new File(path).exists();
              boolean isDir = new File(path).isDirectory();
-@@ -528,8 +577,9 @@ public class RNFetchBlobFS {
+@@ -528,8 +582,9 @@ public class RNFetchBlobFS {
  
      /**
       * List content of folder
@@ -12171,7 +12176,7 @@ new file mode 100644
       */
      static void ls(String path, Callback callback) {
          path = normalizePath(path);
-@@ -548,17 +598,18 @@ public class RNFetchBlobFS {
+@@ -548,17 +603,18 @@ public class RNFetchBlobFS {
  
      /**
       * Create a file by slicing given file path
@@ -12195,7 +12200,7 @@ new file mode 100644
                  promise.reject("RNFetchBlob.slice error", "source file : " + src + " not exists");
                  return;
              }
-@@ -569,11 +620,11 @@ public class RNFetchBlobFS {
+@@ -569,11 +625,11 @@ public class RNFetchBlobFS {
              FileInputStream in = new FileInputStream(new File(src));
              FileOutputStream out = new FileOutputStream(new File(dest));
              in.skip(start);
@@ -12210,7 +12215,7 @@ new file mode 100644
                      break;
                  }
                  out.write(buffer, 0, (int) Math.min(remain, read));
-@@ -594,24 +645,24 @@ public class RNFetchBlobFS {
+@@ -594,24 +650,24 @@ public class RNFetchBlobFS {
  
          new AsyncTask<String, Integer, Integer>() {
              @Override
@@ -12245,7 +12250,7 @@ new file mode 100644
                      res.pushMap(statFile(src.getAbsolutePath()));
                  }
                  callback.invoke(null, res);
-@@ -622,6 +673,7 @@ public class RNFetchBlobFS {
+@@ -622,6 +678,7 @@ public class RNFetchBlobFS {
  
      /**
       * show status of a file or directory
@@ -12253,7 +12258,7 @@ new file mode 100644
       * @param path
       * @param callback
       */
-@@ -629,17 +681,20 @@ public class RNFetchBlobFS {
+@@ -629,17 +686,20 @@ public class RNFetchBlobFS {
          try {
              path = normalizePath(path);
              WritableMap result = statFile(path);
@@ -12277,7 +12282,7 @@ new file mode 100644
       * @param path
       * @return Stat result of a file or path
       */
-@@ -647,7 +702,7 @@ public class RNFetchBlobFS {
+@@ -647,7 +707,7 @@ public class RNFetchBlobFS {
          try {
              path = normalizePath(path);
              WritableMap stat = Arguments.createMap();
@@ -12286,7 +12291,7 @@ new file mode 100644
                  String name = path.replace(RNFetchBlobConst.FILE_PREFIX_BUNDLE_ASSET, "");
                  AssetFileDescriptor fd = RNFetchBlob.RCTContext.getAssets().openFd(name);
                  stat.putString("filename", name);
-@@ -655,8 +710,7 @@ public class RNFetchBlobFS {
+@@ -655,8 +715,7 @@ public class RNFetchBlobFS {
                  stat.putString("type", "asset");
                  stat.putString("size", String.valueOf(fd.getLength()));
                  stat.putInt("lastModified", 0);
@@ -12296,7 +12301,7 @@ new file mode 100644
                  File target = new File(path);
                  if (!target.exists()) {
                      return null;
-@@ -670,18 +724,19 @@ public class RNFetchBlobFS {
+@@ -670,18 +729,19 @@ public class RNFetchBlobFS {
  
              }
              return stat;
@@ -12318,7 +12323,7 @@ new file mode 100644
          try {
              MediaScannerConnection.scanFile(mCtx, path, mimes, new MediaScannerConnection.OnScanCompletedListener() {
                  @Override
-@@ -689,15 +744,16 @@ public class RNFetchBlobFS {
+@@ -689,15 +749,16 @@ public class RNFetchBlobFS {
                      callback.invoke(null, true);
                  }
              });
@@ -12338,7 +12343,7 @@ new file mode 100644
       * @param encoding Encoding of initial data.
       * @param callback RCT bridge callback.
       */
-@@ -705,65 +761,68 @@ public class RNFetchBlobFS {
+@@ -705,65 +766,68 @@ public class RNFetchBlobFS {
          try {
              File dest = new File(path);
              boolean created = dest.createNewFile();
@@ -12426,7 +12431,7 @@ new file mode 100644
              callback.invoke(err.getLocalizedMessage());
          }
      }
-@@ -779,19 +838,20 @@ public class RNFetchBlobFS {
+@@ -779,19 +843,20 @@ public class RNFetchBlobFS {
              args.putString("external_total", String.valueOf(statEx.getTotalBytes()));
  
          }
@@ -12450,7 +12455,7 @@ new file mode 100644
                  try {
                      for (int i = 0; i < paths[0].size(); i++) {
                          File f = new File(paths[0].getString(i));
-@@ -799,7 +859,7 @@ public class RNFetchBlobFS {
+@@ -799,7 +864,7 @@ public class RNFetchBlobFS {
                              f.delete();
                      }
                      callback.invoke(null, true);
@@ -12459,7 +12464,7 @@ new file mode 100644
                      callback.invoke(err.getLocalizedMessage());
                  }
                  return paths[0].size();
-@@ -810,38 +870,38 @@ public class RNFetchBlobFS {
+@@ -810,38 +875,38 @@ public class RNFetchBlobFS {
  
      /**
       * String to byte converter method
@@ -12511,7 +12516,7 @@ new file mode 100644
          WritableMap eventData = Arguments.createMap();
          eventData.putString("event", event);
          eventData.putArray("detail", data);
-@@ -857,8 +917,10 @@ public class RNFetchBlobFS {
+@@ -857,8 +922,10 @@ public class RNFetchBlobFS {
      }
  
      /**
@@ -12524,7 +12529,7 @@ new file mode 100644
       * @param path The file to open stream
       * @return InputStream instance
       * @throws IOException
-@@ -872,49 +934,49 @@ public class RNFetchBlobFS {
+@@ -872,49 +939,49 @@ public class RNFetchBlobFS {
  
      /**
       * Check if the asset or the file exists
